@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — Olympic Line Distribution</title>
+  <meta name="robots" content="noindex" />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+</head>
+<body class="login-body">
+  <main class="login-wrap">
+    <form class="login-card" method="POST" action="/admin/login">
+      <span class="login-emblem" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="56" height="56" role="img">
+          <circle cx="32" cy="32" r="30" fill="none" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M14 40 L26 22 L33 31 L40 20 L50 40 Z" fill="currentColor" opacity="0.9"/>
+          <path d="M32 26 L36 20 L40 26 Z" fill="#fbfaf5" opacity="0.85"/>
+          <rect x="18" y="42" width="28" height="7" rx="1.5" fill="currentColor"/>
+          <line x1="16" y1="52" x2="48" y2="52" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+      </span>
+      <h1 class="login-title">Admin Login</h1>
+      <p class="login-sub">Olympic Line Distribution</p>
+
+      <div id="login-error" class="login-error" role="alert">Incorrect username or password.</div>
+
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" required autofocus />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+      <a href="/" class="login-back">&larr; Back to site</a>
+    </form>
+  </main>
+  <script>
+    if (new URLSearchParams(location.search).get("error")) {
+      document.getElementById("login-error").style.display = "block";
+    }
+  </script>
+</body>
+</html>

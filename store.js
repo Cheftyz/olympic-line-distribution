@@ -33,6 +33,7 @@ function createFileStore({ dataDir }) {
 
   return {
     driver: "file",
+    sessionStore: undefined, // express-session default MemoryStore
     async getProducts() {
       return read().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     },
@@ -60,6 +61,7 @@ function createFileStore({ dataDir }) {
 // ===========================================================================
 async function createMongoStore(uri) {
   const { MongoClient } = require("mongodb");
+  const MongoStore = require("connect-mongo");
   const client = new MongoClient(uri);
   await client.connect();
   const db = client.db(); // database name comes from the connection string
@@ -74,6 +76,11 @@ async function createMongoStore(uri) {
 
   return {
     driver: "mongo",
+    sessionStore: MongoStore.create({
+      client,
+      collectionName: "sessions",
+      ttl: 60 * 60 * 24 * 7, // 7 days
+    }),
     async getProducts() {
       const docs = await Products.find({}).sort({ createdAt: -1 }).toArray();
       return docs.map(strip);

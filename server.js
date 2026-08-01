@@ -2,12 +2,15 @@
 try { require("dotenv").config(); } catch (_) { /* dotenv optional */ }
 
 const express = require("express");
+const session = require("express-session");
+const crypto = require("crypto");
 const path = require("path");
 const createStore = require("./store");
 
 const PORT = process.env.PORT || 3000;
+const IS_PROD = process.env.NODE_ENV === "production";
 
-// Admin credentials (override in production via environment variables)
+// Admin credentials (set these in production via environment variables)
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "changeme";
 if (ADMIN_PASSWORD === "changeme") {
@@ -16,18 +19,28 @@ if (ADMIN_PASSWORD === "changeme") {
   );
 }
 
+const SESSION_SECRET =
+  process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+if (!process.env.SESSION_SECRET) {
+  console.warn(
+    "[!] SESSION_SECRET not set — using a random one (logins reset on restart). Set SESSION_SECRET to persist logins."
+  );
+}
+
+// Timing-safe credential check
+function safeEqual(a, b) {
+  const ab = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
 function requireAdmin(req, res, next) {
-  const header = req.headers.authorization || "";
-  const [scheme, encoded] = header.split(" ");
-  if (scheme === "Basic" && encoded) {
-    const decoded = Buffer.from(encoded, "base64").toString("utf8");
-    const idx = decoded.indexOf(":");
-    const user = decoded.slice(0, idx);
-    const pass = decoded.slice(idx + 1);
-    if (user === ADMIN_USER && pass === ADMIN_PASSWORD) return next();
+  if (req.session && req.session.isAdmin) return next();
+  if (req.path.startsWith("/api/")) {
+    return res.status(401).json({ error: "Not signed in." });
   }
-  res.set("WWW-Authenticate", 'Basic realm="Olympic Line Admin", charset="UTF-8"');
-  return res.status(401).send("Authentication required.");
+  return res.redirect("/admin/login");
 }
 
 function cleanText(value, max = 500) {
@@ -39,11 +52,26 @@ async function main() {
   console.log(`[store] driver: ${store.driver}`);
 
   const app = express();
+  if (IS_PROD) app.set("trust proxy", 1); // required for secure cookies behind Render's proxy
+
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  app.use(
+    session({
+      secret: SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      store: store.sessionStore, // undefined -> in-memory (dev/file mode)
+      cookie: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: IS_PROD,
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      },
+    })
+  );
 
   // ---- API ----
-  // Public: list products
   app.get("/api/products", async (req, res) => {
     try {
       res.json(await store.getProducts());
@@ -53,7 +81,6 @@ async function main() {
     }
   });
 
-  // Admin: add a product
   app.post("/api/products", requireAdmin, async (req, res) => {
     const name = cleanText(req.body.name, 120);
     if (!name) return res.status(400).json({ error: "Product name is required." });
@@ -75,7 +102,6 @@ async function main() {
     }
   });
 
-  // Admin: delete a product
   app.delete("/api/products/:id", requireAdmin, async (req, res) => {
     try {
       const ok = await store.deleteProduct(req.params.id);
@@ -85,6 +111,26 @@ async function main() {
       console.error(err);
       res.status(500).json({ error: "Could not delete the product." });
     }
+  });
+
+  // ---- Auth ----
+  app.get("/admin/login", (req, res) => {
+    if (req.session && req.session.isAdmin) return res.redirect("/admin");
+    res.sendFile(path.join(__dirname, "views", "login.html"));
+  });
+
+  app.post("/admin/login", (req, res) => {
+    const user = cleanText(req.body.username, 120);
+    const pass = String(req.body.password == null ? "" : req.body.password);
+    const ok = safeEqual(user, ADMIN_USER) && safeEqual(pass, ADMIN_PASSWORD);
+    if (!ok) return res.redirect("/admin/login?error=1");
+    req.session.isAdmin = true;
+    req.session.user = user;
+    res.redirect("/admin");
+  });
+
+  app.post("/admin/logout", (req, res) => {
+    req.session.destroy(() => res.redirect("/admin/login"));
   });
 
   // ---- Pages ----
@@ -98,7 +144,6 @@ async function main() {
     res.sendFile(path.join(__dirname, "public", "catalog.html"));
   });
 
-  // Admin page is protected so only authenticated admins can load it
   app.get("/admin", requireAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, "views", "admin.html"));
   });
