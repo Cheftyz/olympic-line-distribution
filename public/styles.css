@@ -107,7 +107,9 @@ a:hover { color: var(--green-900); }
   justify-content: space-between;
   height: 72px;
 }
-.brand { display: flex; align-items: center; gap: 12px; color: var(--green-800); }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--green-800); }
+.brand-logo { height: 56px; width: 56px; display: block; object-fit: contain; }
+.admin-tag { align-self: center; }
 .brand-emblem { color: var(--green-800); display: flex; }
 .brand-text { display: flex; flex-direction: column; line-height: 1; }
 .brand-name {
@@ -473,6 +475,7 @@ a:hover { color: var(--green-900); }
   text-align: center;
 }
 .login-emblem { color: var(--green-800); display: inline-flex; margin-bottom: 12px; }
+.login-logo { width: 130px; height: 130px; object-fit: contain; display: block; margin: 0 auto 6px; }
 .login-title { font-size: 1.8rem; margin-bottom: 4px; }
 .login-sub {
   font-family: var(--font-head);
