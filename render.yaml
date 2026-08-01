@@ -1,0 +1,27 @@
+# Render Blueprint — free deploy for Olympic Line Distribution.
+#
+# In Render: New + → Blueprint → connect this repo. Render reads this file and
+# creates a FREE web service. Product data lives in MongoDB Atlas, so no paid
+# disk is required (Render's free disk is wiped on every restart/redeploy).
+#
+# Set these in the Render dashboard (Environment) before/at first deploy:
+#   MONGODB_URI     your MongoDB Atlas connection string
+#   ADMIN_USER      the admin login you want (defaults to "admin")
+#   ADMIN_PASSWORD  the admin password you want
+services:
+  - type: web
+    name: olympic-line-distribution
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
