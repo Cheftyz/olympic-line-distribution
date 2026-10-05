@@ -47,7 +47,7 @@ function cleanText(value, max = 500) {
   return String(value == null ? "" : value).trim().slice(0, max);
 }
 
-async function main() {
+async function buildApp() {
   const store = await createStore({ dataDir: path.join(__dirname, "data") });
   console.log(`[store] driver: ${store.driver}`);
 
@@ -148,12 +148,23 @@ async function main() {
     res.sendFile(path.join(__dirname, "views", "admin.html"));
   });
 
-  app.listen(PORT, () => {
-    console.log(`Olympic Line Distribution running on http://localhost:${PORT}`);
-  });
+  return app;
 }
 
-main().catch((err) => {
-  console.error("Failed to start:", err.message);
-  process.exit(1);
-});
+// Vercel serverless entry: build once, reuse across warm invocations.
+let appPromise;
+module.exports = (req, res) => {
+  if (!appPromise) appPromise = buildApp();
+  appPromise.then((app) => app(req, res)).catch((err) => {
+    console.error("Init failed:", err);
+    res.statusCode = 500;
+    res.end("Server initialization error");
+  });
+};
+
+// Local dev / Render: start a real listener only when run directly.
+if (require.main === module) {
+  buildApp()
+    .then((app) => app.listen(PORT, () => console.log(`Olympic Line Distribution running on http://localhost:${PORT}`)))
+    .catch((err) => { console.error("Failed to start:", err.message); process.exit(1); });
+}
