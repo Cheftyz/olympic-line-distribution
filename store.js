@@ -20,7 +20,7 @@ const crypto = require("crypto");
 // ===========================================================================
 function createFileStore({ dataDir }) {
   const FILE = path.join(dataDir, "products.json");
-  fs.mkdirSync(dataDir, { recursive: true });
+  try { fs.mkdirSync(dataDir, { recursive: true }); } catch (_) { /* read-only FS (serverless) */ }
 
   const read = () => {
     try { return JSON.parse(fs.readFileSync(FILE, "utf8")); } catch { return []; }
@@ -131,8 +131,13 @@ function normalizeMongoUri(raw) {
 module.exports = async function createStore({ dataDir }) {
   const raw = process.env.MONGODB_URI;
   if (raw && raw.trim()) {
-    const uri = normalizeMongoUri(raw);
-    return createMongoStore(uri);
+    try {
+      return await createMongoStore(normalizeMongoUri(raw));
+    } catch (err) {
+      // DB unreachable (e.g. paused Atlas cluster) — serve from the file store
+      // so the public site stays up instead of 500ing everything.
+      console.error("[store] MongoDB connect failed, falling back to file store:", err.message);
+    }
   }
   return createFileStore({ dataDir });
 };
